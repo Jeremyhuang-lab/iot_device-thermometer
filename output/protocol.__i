@@ -1,0 +1,1 @@
+"mcu_sdk\protocol.c" LARGE OMF2 OPTIMIZE (8,SPEED) BROWSE INCDIR(.\mcu_sdk) DEBUG PRINT(.\lst\protocol.lst) OBJECT(.\output\protocol.obj)

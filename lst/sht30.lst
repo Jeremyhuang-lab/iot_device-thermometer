@@ -1,0 +1,170 @@
+C51 COMPILER V9.57.0.0   SHT30                                                             03/10/2021 11:41:49 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE SHT30
+OBJECT MODULE PLACED IN .\output\sht30.obj
+COMPILER INVOKED BY: E:\Keil5 MDK1\C51\BIN\C51.EXE source\sht30.c LARGE OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\mcu_sdk) 
+                    -DEBUG PRINT(.\lst\sht30.lst) OBJECT(.\output\sht30.obj)
+
+line level    source
+
+   1          #ifndef _SHT30_C_
+   2          #define _SHT30_C_
+   3          /*********************************************************************************************************
+             -************/
+   4          #include "include/Public.h"
+   5          /*********************************************************************************************************
+             -************/
+   6          float   fTemperature;  //温度 -40至125℃    精度0.1℃ 
+   7          unsigned int ucHumidity;    //湿度 0%RH至100%RH  精度1%RH   
+   8          
+   9          #define TIMER0_2S  200
+  10          extern unsigned char SHT30_Measure_Timeout;
+  11          
+  12          void SHT30_Init(void)
+  13          {
+  14   1              
+  15   1              IIC_Start();
+  16   1              IIC_Send_Byte(SHT30_ADDR | Write_CMD);
+  17   1              IIC_Wait_Ack();
+  18   1              IIC_Send_Byte(0x30); //soft reset
+  19   1              IIC_Wait_Ack();
+  20   1              IIC_Send_Byte(0xA2);
+  21   1              IIC_Wait_Ack();
+  22   1              
+  23   1              IIC_Start();
+  24   1              IIC_Send_Byte(SHT30_ADDR | Write_CMD);
+  25   1              IIC_Wait_Ack();
+  26   1              IIC_Send_Byte(0x27); //High repeat , mps = 10
+  27   1              IIC_Wait_Ack();
+  28   1              IIC_Send_Byte(0x37);
+  29   1              IIC_Wait_Ack();
+  30   1              IIC_Stop();
+  31   1              
+  32   1      }
+  33          /*
+  34                  * @name   Measure_Period_Mode
+  35                  * @brief  周期测量模式
+  36                  * @param  None
+  37                  * @retval None      
+  38          */
+  39          void Measure_Period_Mode(void)
+  40          {
+  41   1          unsigned char   temp_array[6] = {0};
+  42   1              unsigned int  temp_uint     = 0;
+  43   1              float     temp_float    = 0;
+  44   1              
+  45   1      //      SHT30_Measure_Timeout = 0;
+  46   1      //      if(SHT30_Measure_Timeout>=TIMER0_2S)
+  47   1      //      {
+  48   1                      IIC_Start();
+  49   1                      IIC_Send_Byte(SHT30_ADDR | Write_CMD);
+  50   1                      IIC_Wait_Ack();
+  51   1                      IIC_Send_Byte(0xE0);
+  52   1                      IIC_Wait_Ack();
+C51 COMPILER V9.57.0.0   SHT30                                                             03/10/2021 11:41:49 PAGE 2   
+
+  53   1                      IIC_Send_Byte(0x00);
+  54   1                      IIC_Wait_Ack();
+  55   1                      
+  56   1                      IIC_Start();
+  57   1                      IIC_Send_Byte(SHT30_ADDR | Read_CMD); 
+  58   1                      IIC_Wait_Ack();
+  59   1                      temp_array[0] = IIC_Read_Byte(1);
+  60   1                      temp_array[1] = IIC_Read_Byte(1);
+  61   1                      temp_array[2] = IIC_Read_Byte(1);
+  62   1                      temp_array[3] = IIC_Read_Byte(1);
+  63   1                      temp_array[4] = IIC_Read_Byte(1);
+  64   1                      temp_array[5] = IIC_Read_Byte(0);
+  65   1                      IIC_Stop();
+  66   1      
+  67   1      //              SHT30_Measure_Timeout = 0;
+  68   1      //      }       
+  69   1              
+  70   1              
+  71   1              //////计算温度,精度0.1
+  72   1              if(CRC_8(temp_array,2) == temp_array[2]) //CRC-8 校验
+  73   1              {
+  74   2      //              Uart1_PutChar(0x11);
+  75   2                      temp_uint         = temp_array[0]*256+temp_array[1];
+  76   2                      temp_float        = -45+175*((float)temp_uint)/65535;
+  77   2                      fTemperature = temp_float;
+  78   2      //              uart_printf("Wendu = %.1f℃\r\n",fTemperature); 
+  79   2          }
+  80   1              
+  81   1              //////计算湿度，精度1%RH
+  82   1              if(CRC_8(&temp_array[3],2) == temp_array[5]) //CRC-8 校验
+  83   1              {
+  84   2      //              Uart1_PutChar(0x12);
+  85   2                      temp_uint      = temp_array[3]*256+temp_array[4];
+  86   2                      temp_float     = ((float)temp_uint)*100/65535;
+  87   2                      temp_float     = temp_float;
+  88   2                      ucHumidity = temp_float;  
+  89   2      //              Uart1_PutChar(ucHumidity);
+  90   2      //              uart_printf("shidu = %.1f%%RH\r\n\r\n",temp_float);
+  91   2          }
+  92   1              mcu_dp_value_update(DPID_TEMP_CURRENT,fTemperature*10);     //VALUE型数据上报;
+  93   1          mcu_dp_value_update(DPID_HUMIDITY_VALUE,ucHumidity); //VALUE型数据上报;
+  94   1      
+  95   1      //      if(SHT30_Measure_Timeout>=100)
+  96   1      //      {
+  97   1      //              SHT30_Measure_Timeout = 0;
+  98   1                      OLED_Temp_Humi_Display(fTemperature,ucHumidity);
+  99   1      //      }       
+ 100   1      }
+ 101          
+ 102          /*
+ 103                  * @name   CRC_8
+ 104                  * @brief  CRC-8校验
+ 105                  * @param  Crc_ptr -> 校验数据首地址
+ 106                                                          LEN     -> 校验数据长度
+ 107                  * @retval CRC_Value -> 校验值      
+ 108          */
+ 109          unsigned char CRC_8(unsigned char *Crc_ptr,unsigned char LEN)
+ 110          {
+ 111   1              unsigned char CRC_Value = 0xFF;
+ 112   1              unsigned char i = 0,j = 0;
+ 113   1      
+ 114   1              for(i=0;i<LEN;i++)
+C51 COMPILER V9.57.0.0   SHT30                                                             03/10/2021 11:41:49 PAGE 3   
+
+ 115   1              {
+ 116   2                      CRC_Value ^= *(Crc_ptr+i);
+ 117   2                      for(j=0;j<8;j++)
+ 118   2                      {
+ 119   3                              if(CRC_Value & 0x80)
+ 120   3                                      CRC_Value = (CRC_Value << 1) ^ 0x31;
+ 121   3                              else
+ 122   3                                      CRC_Value = (CRC_Value << 1);
+ 123   3                      }
+ 124   2              }
+ 125   1              return CRC_Value;
+ 126   1      }
+ 127          
+ 128          
+ 129          
+ 130          
+ 131          
+ 132          
+ 133          
+ 134          
+ 135          
+ 136          #endif 
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    608    ----
+   CONSTANT SIZE    =      6    ----
+   XDATA SIZE       =      6      17
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,289 @@
+C51 COMPILER V9.57.0.0   MYSYSTEM                                                          03/10/2021 11:41:48 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE MYSYSTEM
+OBJECT MODULE PLACED IN .\output\mysystem.obj
+COMPILER INVOKED BY: E:\Keil5 MDK1\C51\BIN\C51.EXE source\mysystem.c LARGE OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\mcu_sd
+                    -k) DEBUG PRINT(.\lst\mysystem.lst) OBJECT(.\output\mysystem.obj)
+
+line level    source
+
+   1          #ifndef _MYSYSTEM_C_
+   2          #define _MYSYSTEM_C_
+   3          /*********************************************************************************************************
+             -************/
+   4          #include "include/Public.h"
+   5          /*********************************************************************************************************
+             -************/
+   6          
+   7          #define INT_TIME0                       10000                   //定时时间，单位为us
+   8          
+   9          #define TH_VAL0                         (unsigned char)((0x10000 - (INT_TIME0*(FOSC/1000))/12000)>>8)
+  10          #define TL_VAL0                         (unsigned char)(0x10000 - (INT_TIME0*(FOSC/1000))/12000)
+  11          
+  12          extern unsigned int KeyMsg;                      //状态机按键按下
+  13          extern unsigned char xdata      gp_10ms_timer;       //10ms扫描定时器
+  14          extern unsigned char xdata scan_long_key_timer;  //机械按键长按计时
+  15          
+  16          
+  17          #define INT_TIME1                       1000                    //定时时间，单位为us
+  18          
+  19          #define TH_VAL1                         (unsigned char)((0x10000 - (INT_TIME1*(FOSC/1000))/12000)>>8)
+  20          #define TL_VAL1                         (unsigned char)(0x10000 - (INT_TIME1*(FOSC/1000))/12000)
+  21          
+  22          
+  23          extern unsigned char xdata led_color_index;  //RGB配色
+  24          bit Day_Flag = 0;
+  25          bit Night_Flag = 0;
+  26          
+  27          unsigned char Cnt_msD = 0;
+  28          unsigned char Cnt_1sD = 0;
+  29          unsigned char Cnt_1mD = 0;
+  30          
+  31          bit Day_Time_Flag = 0;
+  32          bit Night_Time_Flag = 0;
+  33          
+  34          unsigned char Cnt_msN = 0;
+  35          unsigned char Cnt_1sN = 0;
+  36          unsigned char Cnt_1mN = 0;
+  37          
+  38          static unsigned long Timer_Value = 0;
+  39          static unsigned long Timer_250ms_Value = 0;
+  40          static unsigned long Timer_Sec_Value = 0;
+  41          
+  42          
+  43          extern unsigned int u16_gp_4ms_timer;
+  44          
+  45          unsigned char SHT30_Measure_Timeout = 0;
+  46          void MySystem_Init(void)
+  47          {
+  48   1              MyGPIO_Init();
+  49   1          INT2_Init();
+  50   1              INT4_Init();
+  51   1              Timer0_Init();
+  52   1              Timer1_Init();
+C51 COMPILER V9.57.0.0   MYSYSTEM                                                          03/10/2021 11:41:48 PAGE 2   
+
+  53   1              lamp_init();
+  54   1              Beep_Init();
+  55   1              IIC_GPIO_Init(); 
+  56   1          SHT30_Init();
+  57   1              OLED_Init();
+  58   1              //初始化wifi
+  59   1          wifi_protocol_init();
+  60   1              OLED_Clear();
+  61   1      }
+  62          
+  63          void MyGPIO_Init(void)
+  64          {
+  65   1              
+  66   1              
+  67   1      
+  68   1              
+  69   1      
+  70   1      }
+  71          
+  72          /*****************************************************************************
+  73          函数名称 : wifi_work_state_led
+  74          功能描述 : wifi状态指示灯控制
+  75          输入参数 : 无
+  76          返回参数 : 无
+  77          使用说明 : 无
+  78          *****************************************************************************/
+  79          void wifi_work_state_led(void)
+  80          {
+  81   1        unsigned char wifi_state = mcu_get_wifi_work_state();
+  82   1        static unsigned char wifi_state_bak = WIFI_SATE_UNKNOW;
+  83   1              
+  84   1              switch(wifi_state)
+  85   1              {
+  86   2              case SMART_CONFIG_STATE:
+  87   2                      if(get_timer_250ms_value() % 2 == 0)
+  88   2                      {
+  89   3      //                         //错误指示灯亮
+  90   3                              led_color_index =  LED_COLOR_RED;
+  91   3                          set_lamp_duty(led_color_index);
+  92   3                      set_lamp_color(led_color_index);        
+  93   3                      }
+  94   2                      else
+  95   2                      {
+  96   3      //                         //错误指示灯灭
+  97   3                              led_color_index =  LED_COLOR_OFF;
+  98   3                          set_lamp_duty(led_color_index);
+  99   3                      set_lamp_color(led_color_index);        
+ 100   3                      }
+ 101   2                      wifi_state_bak = SMART_CONFIG_STATE;
+ 102   2                      break;
+ 103   2                      
+ 104   2              case AP_STATE:
+ 105   2                      if((get_timer_250ms_value() % 12) == 0)
+ 106   2                      {
+ 107   3      //                         //错误指示灯亮
+ 108   3                              led_color_index =  LED_COLOR_RED;
+ 109   3                          set_lamp_duty(led_color_index);
+ 110   3                      set_lamp_color(led_color_index);
+ 111   3                      }
+ 112   2                      else if((get_timer_250ms_value() % 12) == 6)
+ 113   2                      {
+ 114   3      //                         //错误指示灯灭
+C51 COMPILER V9.57.0.0   MYSYSTEM                                                          03/10/2021 11:41:48 PAGE 3   
+
+ 115   3                              led_color_index =  LED_COLOR_OFF;
+ 116   3                          set_lamp_duty(led_color_index);
+ 117   3                      set_lamp_color(led_color_index);        
+ 118   3                      }
+ 119   2                      wifi_state_bak = AP_STATE;
+ 120   2                      break;
+ 121   2                      
+ 122   2              case WIFI_NOT_CONNECTED:
+ 123   2                      if((wifi_state_bak == SMART_CONFIG_STATE) || (wifi_state_bak == AP_STATE))
+ 124   2                      {
+ 125   3      //                         //错误指示灯灭
+ 126   3                              led_color_index =  LED_COLOR_OFF;
+ 127   3                          set_lamp_duty(led_color_index);
+ 128   3                      set_lamp_color(led_color_index);        
+ 129   3                      }  
+ 130   2                      break;
+ 131   2                      
+ 132   2              case WIFI_CONNECTED:
+ 133   2                      if((wifi_state_bak == SMART_CONFIG_STATE) || (wifi_state_bak == AP_STATE))
+ 134   2                      {               
+ 135   3      //                         //错误指示灯亮
+ 136   3                              led_color_index =  LED_COLOR_RED;
+ 137   3                          set_lamp_duty(led_color_index);
+ 138   3                      set_lamp_color(led_color_index);
+ 139   3                              wifi_state_bak = WIFI_CONNECTED;
+ 140   3                      }
+ 141   2                      break;
+ 142   2                      
+ 143   2              default:
+ 144   2                      if((wifi_state_bak == SMART_CONFIG_STATE) || (wifi_state_bak == AP_STATE))
+ 145   2                      {
+ 146   3      //                         //错误指示灯灭
+ 147   3                              led_color_index =  LED_COLOR_OFF;
+ 148   3                          set_lamp_duty(led_color_index);
+ 149   3                      set_lamp_color(led_color_index);
+ 150   3                      }
+ 151   2                      break;
+ 152   2              }
+ 153   1      }
+ 154          
+ 155          /***********************************************************************************
+ 156          函数名：Timer0_init
+ 157          功能说明：Timer0初始化
+ 158          输入参数：None 
+ 159          返回值：  None                                                  
+ 160          ***********************************************************************************/
+ 161          void Timer0_Init(void)
+ 162          {
+ 163   1              TMOD = (TMOD&0xFC)|0x01; //模式选择: 定时器0，模式1。
+ 164   1              TH0 = TH_VAL0;                                          //高8位装初值
+ 165   1              TL0 = TL_VAL0;                                          //低8位装初值
+ 166   1              
+ 167   1              TR0 = 1;       //定时器0使能    
+ 168   1              ET0 = 1;       //定时器0中断使能
+ 169   1              PT0 = 1;       //设置定时器0中断优先级为低优先级
+ 170   1              
+ 171   1      }
+ 172          
+ 173          void Timer0_ISR(void)interrupt 1 //每10ms产生中断
+ 174          {
+ 175   1              TH0 = TH_VAL0;                                          //高8位装初值
+ 176   1              TL0 = TL_VAL0;                                          //低8位装初值   
+C51 COMPILER V9.57.0.0   MYSYSTEM                                                          03/10/2021 11:41:48 PAGE 4   
+
+ 177   1              gp_10ms_timer--;
+ 178   1              if(scan_long_key_timer)
+ 179   1              {
+ 180   2                      scan_long_key_timer--;
+ 181   2              }       
+ 182   1              
+ 183   1              KeyMsg=_scan_get_msg();
+ 184   1              
+ 185   1      }
+ 186          
+ 187          /***********************************************************************************
+ 188          函数名：Timer1_init
+ 189          功能说明：Timer1初始化
+ 190          输入参数：None 
+ 191          返回值：  None                                                  
+ 192          ***********************************************************************************/
+ 193          void Timer1_Init(void)
+ 194          {
+ 195   1              TMOD = (TMOD&0xCF)|0x10; //模式选择: 定时器1，模式1。
+ 196   1              TH1 = TH_VAL1;                                          //高8位装初值
+ 197   1              TL1 = TL_VAL1;                                          //低8位装初值
+ 198   1              
+ 199   1              TR1 = 1;                                                //定时器1使能  
+ 200   1              ET1 = 1;                                                //定时器1中断使能
+ 201   1              PT1 = 0;                                                //设置定时器1中断优先级为低优先级
+ 202   1              
+ 203   1      }
+ 204          
+ 205          void Timer1_ISR(void)interrupt 3 //每10ms产生中断
+ 206          {
+ 207   1              TH1 = TH_VAL1;                                          //高8位装初值
+ 208   1              TL1 = TL_VAL1;                                          //低8位装初值   
+ 209   1              
+ 210   1              Timer_Value ++;
+ 211   1              if((Timer_Value % 250) == 0)
+ 212   1              {
+ 213   2                      Timer_250ms_Value ++;
+ 214   2                      if(Timer_250ms_Value % 40 == 0)
+ 215   2                      {
+ 216   3                              Timer_Sec_Value ++;
+ 217   3                      }
+ 218   2                      if(Timer_Sec_Value >= 600)
+ 219   2                      {
+ 220   3                              Timer_Sec_Value = 0;            
+ 221   3                      }               
+ 222   2              }
+ 223   1              u16_gp_4ms_timer--;
+ 224   1              SHT30_Measure_Timeout++;
+ 225   1              
+ 226   1      }       
+ 227          
+ 228          /*****************************************************************************
+ 229          函数名称 : get_count_value
+ 230          功能描述 : 获取Timer0计数值
+ 231          输入参数 : 无
+ 232          返回参数 : Timer_Value
+ 233          使用说明 : 无
+ 234          *****************************************************************************/
+ 235          unsigned long get_count_value(void)
+ 236          {
+ 237   1              return Timer_Value;
+ 238   1      }
+C51 COMPILER V9.57.0.0   MYSYSTEM                                                          03/10/2021 11:41:48 PAGE 5   
+
+ 239          /*****************************************************************************
+ 240          函数名称 : get_timer_250ms_value
+ 241          功能描述 : 获取250ms计数值
+ 242          输入参数 : 无
+ 243          返回参数 : Timer_250ms_Value
+ 244          使用说明 : 无
+ 245          *****************************************************************************/
+ 246          unsigned long get_timer_250ms_value(void)
+ 247          {
+ 248   1              return Timer_250ms_Value;
+ 249   1      }
+ 250          
+ 251          #endif
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    741    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     20    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      4    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

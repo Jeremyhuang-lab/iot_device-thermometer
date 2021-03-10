@@ -1,0 +1,222 @@
+C51 COMPILER V9.57.0.0   KEY                                                               03/10/2021 11:41:48 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN .\output\key.obj
+COMPILER INVOKED BY: E:\Keil5 MDK1\C51\BIN\C51.EXE source\key.c LARGE OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\mcu_sdk) DE
+                    -BUG PRINT(.\lst\key.lst) OBJECT(.\output\key.obj)
+
+line level    source
+
+   1          #ifndef _KEY_C_
+   2          #define _KEY_C_
+   3          /*********************************************************************************************************
+             -************/
+   4          #include "include/Public.h"
+   5          /*********************************************************************************************************
+             -************/
+   6          unsigned char xdata     gp_10ms_timer;  //10ms定时扫描时间
+   7          unsigned char xdata scan_long_key_timer; //长按计时
+   8          unsigned int KeyMsg;                     //按键信息标志
+   9          unsigned char KEY_Mode=0;    //按键模式
+  10          extern unsigned char xdata led_color_index;  //RGB配色
+  11          
+  12          
+  13          /***********************************************************************************
+  14          函数名：INT2_Init
+  15          功能说明：中断初始化
+  16          输入参数：None 
+  17          返回值：  None                                                  
+  18          ***********************************************************************************/
+  19          void INT2_Init(void)
+  20          {
+  21   1              P30F = INPUT|PU_EN;                                                                         //P30设置为输入模式
+  22   1              INDEX = 0;                                                                                              //EPCON为带索引的寄存器，设置INDEX=0 对应INT2
+  23   1              EPCON = EPPL(1) | P30_INDEX;                                    //设置P30为INT2中断引脚
+  24   1              INT2EN = 1;                                                                                     //外部中断2中断使能
+  25   1              EPIE |= 0x01;                                                                                   //INT2中断使能
+  26   1      }       
+  27          
+  28          
+  29          /***********************************************************************************
+  30          函数名：INT4_Init
+  31          功能说明：中断初始化
+  32          输入参数：None 
+  33          返回值：  None                                                  
+  34          ***********************************************************************************/
+  35          void INT4_Init(void)
+  36          {
+  37   1              P17F = INPUT|PU_EN;                                                                         //P17设置为输入模式
+  38   1              INDEX = 2;                                                                                              //EPCON为带索引的寄存器，设置INDEX=2 对应INT4
+  39   1              EPCON = EPPL(1) | P17_INDEX;                                    //设置P17为INT2中断引脚
+  40   1              INT4EN = 1;                                                                                     //外部中断4中断使能
+  41   1              EPIE |= 0x04;                                                                                   //INT4中断使能
+  42   1      }       
+  43          
+  44          /***********************************************************************************
+  45          函数名：_scan_get_msg
+  46          功能说明：状态机扫描按键
+  47          输入参数：None
+  48          返回值：  Scan_msg                                                      
+  49          ***********************************************************************************/
+  50          unsigned int _scan_get_msg(void)
+  51          {
+  52   1              static u8_t xdata read_scan_key_timer;
+C51 COMPILER V9.57.0.0   KEY                                                               03/10/2021 11:41:48 PAGE 2   
+
+  53   1              static u16_t xdata last_scan_key=JXKEY_INVALID;
+  54   1              static bit scan_monitor,f_scan_long=0;
+  55   1              u16_t scan_key=JXKEY_INVALID;
+  56   1              u16_t scan_msg=JXKEY_INVALID;
+  57   1      //      Uart0_PutChar(0XAA);
+  58   1      //      if(read_scan_key_timer-gp_10ms_timer>1)
+  59   1              {       
+  60   2                      read_scan_key_timer=gp_10ms_timer;
+  61   2                      if(KEY1 == 0)
+  62   2                      {       
+  63   3      //                      Uart1_PutChar(0XAA);                    
+  64   3                              scan_key = 0x01;
+  65   3                      }
+  66   2                      else if(KEY2 == 0)
+  67   2                      {       
+  68   3      //                      Uart1_PutChar(0XA2);                    
+  69   3                              scan_key = 0x02;
+  70   3                      }
+  71   2                      else
+  72   2                      {       
+  73   3                              scan_key = JXKEY_INVALID;
+  74   3                      }
+  75   2                      if(!scan_monitor)
+  76   2                      {
+  77   3                              if(scan_key!=JXKEY_INVALID)
+  78   3                              {
+  79   4                                      if(scan_key==last_scan_key)
+  80   4                                      {
+  81   5                                              scan_msg=last_scan_key;
+  82   5                                              scan_long_key_timer=JXLONG_KEY_START_TIME;
+  83   5                                              f_scan_long=0;
+  84   5                                              scan_monitor=1;
+  85   5                                      }
+  86   4                                      else
+  87   4                                      {
+  88   5                                              last_scan_key=scan_key;
+  89   5                                      }
+  90   4                              }
+  91   3                      }
+  92   2                      else
+  93   2                      {
+  94   3                              if(scan_key!=JXKEY_INVALID)
+  95   3                              {
+  96   4                                      if(!scan_long_key_timer)
+  97   4                                      {
+  98   5                                              scan_long_key_timer=JXLONG_KEY_TIME;
+  99   5                                              if(f_scan_long)
+ 100   5                                              {
+ 101   6                                                      scan_msg=(u16_t)last_scan_key|JXKEY_LONG;
+ 102   6                                              }
+ 103   5                                              else
+ 104   5                                              {
+ 105   6                                                      scan_msg=(u16_t)last_scan_key|JXKEY_LONG_START;
+ 106   6                                                      f_scan_long=1;
+ 107   6                                              }
+ 108   5                                      }
+ 109   4                              }
+ 110   3                              else
+ 111   3                              {
+ 112   4                                      if(f_scan_long)
+ 113   4                                      {
+ 114   5                                              scan_msg=(u16_t)last_scan_key|JXKEY_LONG_BREAK;
+C51 COMPILER V9.57.0.0   KEY                                                               03/10/2021 11:41:48 PAGE 3   
+
+ 115   5                                      }
+ 116   4                                      else
+ 117   4                                      {
+ 118   5                                              scan_msg=(u16_t)last_scan_key|JXKEY_BREAK;
+ 119   5                                      }
+ 120   4                                      last_scan_key=JXKEY_INVALID;
+ 121   4                                      scan_monitor=0;
+ 122   4                              }
+ 123   3                      }
+ 124   2              }
+ 125   1      //   Uart0_PutChar(0x88);
+ 126   1      //   Uart0_PutChar(scan_msg);
+ 127   1              return scan_msg;
+ 128   1              
+ 129   1      }
+ 130          
+ 131          void KEY_Scan(void)
+ 132          {
+ 133   1              if(KeyMsg ==( K1|JXKEY_BREAK)) 
+ 134   1              {          
+ 135   2                 KeyMsg = 0;
+ 136   2      
+ 137   2              }       
+ 138   1              else if(KeyMsg == (K1|JXKEY_LONG_BREAK))
+ 139   1              {   
+ 140   2                 KeyMsg = 0;
+ 141   2      //         Uart1_PutChar(0xA2);
+ 142   2                 mcu_reset_wifi();   //复位WIFI  //smart AP 配网来回切换
+ 143   2      //      Uart1_PutChar(mcu_get_wifimode_flag()); 
+ 144   2              }  
+ 145   1      
+ 146   1               if(KeyMsg ==( K2|JXKEY_BREAK)) 
+ 147   1              {          
+ 148   2                 KeyMsg = 0;
+ 149   2      //       Uart1_PutChar(0x12);
+ 150   2             if(led_color_index++ >= MAX_LED_COLOR)
+ 151   2                 {
+ 152   3                         led_color_index = LED_COLOR_OFF;
+ 153   3                 }
+ 154   2                 set_lamp_duty(led_color_index);
+ 155   2                 set_lamp_color(led_color_index); 
+ 156   2              }       
+ 157   1              else if(KeyMsg == (K2|JXKEY_LONG_BREAK))
+ 158   1              {   
+ 159   2                 KeyMsg = 0;
+ 160   2      //         Uart1_PutChar(0x22);
+ 161   2      //         mcu_reset_wifi();   //复位WIFI  //smart AP 配网来回切换         
+ 162   2              }  
+ 163   1      }
+ 164          
+ 165          void RGB_Run(void)
+ 166          {
+ 167   1              
+ 168   1      }
+ 169          void INT2_ISR (void) interrupt 7
+ 170          {
+ 171   1              if(EPIF & 0x01)
+ 172   1              {
+ 173   2                      EPIF = 0x01;            
+ 174   2              }
+ 175   1      }
+ 176          
+C51 COMPILER V9.57.0.0   KEY                                                               03/10/2021 11:41:48 PAGE 4   
+
+ 177          
+ 178          void INT4_ISR (void) interrupt 9
+ 179          {
+ 180   1              if(EPIF & 0x04)
+ 181   1              {
+ 182   2                      EPIF = 0x04;
+ 183   2              }
+ 184   1      }
+ 185          
+ 186          #endif 
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    325    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      8    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

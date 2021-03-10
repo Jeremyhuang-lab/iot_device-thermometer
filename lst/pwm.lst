@@ -1,0 +1,134 @@
+C51 COMPILER V9.57.0.0   PWM                                                               03/10/2021 11:41:48 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE PWM
+OBJECT MODULE PLACED IN .\output\pwm.obj
+COMPILER INVOKED BY: E:\Keil5 MDK1\C51\BIN\C51.EXE source\pwm.c LARGE OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\mcu_sdk) DE
+                    -BUG PRINT(.\lst\pwm.lst) OBJECT(.\output\pwm.obj)
+
+line level    source
+
+   1          #ifndef _PWM_C_
+   2          #define _PWM_C_
+   3          /*********************************************************************************************************
+             -************/
+   4          #include "include/Public.h"
+   5          /*********************************************************************************************************
+             -************/
+   6          
+   7          void PWM_Init(unsigned int PWMDIV_V,unsigned int PWMDUT_V)
+   8          {
+   9   1              CKCON |= IHCKE;                                 //打开IRCH时钟
+  10   1      //      CKCON |= ILCKE;                         //打开IRCL时钟
+  11   1              INDEX = PWM_CH0;                                                                                                //设置INDEX值对应PWM0
+  12   1              PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | CKS_SYS ;            //设置PWM时钟源为IRCH  
+  13   1      //      PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | CKS_IL ;             //设置PWM时钟源为IRCL
+  14   1      //      PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | CKS_XH ;             //设置PWM时钟源为XOSCH
+  15   1      
+  16   1              PWMCFG = TOG(0) | 0;                            
+  17   1              PWMPS = PWM_P01_INDEX;                          //设置P01为PWM0输出引脚
+  18   1              P01F  = PWM_SETTING;    
+  19   1              
+  20   1              //设置PWMDIV、PWMDUT
+  21   1              PWMDIVH = (unsigned char)(PWMDIV_V>>8);                 
+  22   1              PWMDIVL = (unsigned char)(PWMDIV_V);                    
+  23   1              PWMDUTH =       (unsigned char)(PWMDUT_V>>8);           
+  24   1              PWMDUTL = (unsigned char)(PWMDUT_V);    
+  25   1      
+  26   1              PWMUPD = (1<<PWM_CH0);                                                                  //PWMDIV、PWMDUT更新使能
+  27   1              while(PWMUPD);                                                                                                  //等待更新完成
+  28   1      //      PWMEN = (1<<PWM_CH0);                                                                           //PWM0使能
+  29   1              
+  30   1      }       
+  31          
+  32          
+  33          
+  34          
+  35          /*
+  36          void PWM0_Switch(unsigned char mode)
+  37          {
+  38                  if(mode == 0)
+  39                  {               
+  40                          CKCON |= IHCKE;                                 //打开IRCH时钟
+  41                  //      CKCON |= ILCKE;                         //打开IRCL时钟
+  42                          INDEX = PWM_CH0;                                                                                                      //设置INDEX值对应PWM0
+  43                          PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | CKS_SYS ;            //设置PWM时钟源为IRCH  
+  44                  //      PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | CKS_IL ;             //设置PWM时钟源为IRCL
+  45                  //      PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | CKS_XH ;             //设置PWM时钟源为XOSCH
+  46          
+  47                          PWMCFG = TOG(0) | 0;                            
+  48                          PWMPS = PWM_P01_INDEX;                          //设置P01为PWM0输出引脚
+  49                          P01F  = PWM_SETTING;    
+  50                          
+  51                          //设置PWMDIV、PWMDUT
+  52                          PWMDIVH = (unsigned char)(PWMDIV_V>>8);                 
+C51 COMPILER V9.57.0.0   PWM                                                               03/10/2021 11:41:48 PAGE 2   
+
+  53                          PWMDIVL = (unsigned char)(PWMDIV_V);                    
+  54                          PWMDUTH = (unsigned char)(PWMDUT_V>>8);         
+  55                          PWMDUTL = (unsigned char)(PWMDUT_V);    
+  56          
+  57                          PWMUPD = (1<<PWM_CH0);                                                                  //PWMDIV、PWMDUT更新使能
+  58                          while(PWMUPD);                                                                                                  //等待更新完成
+  59                          PWMEN = (1<<PWM_CH0);                                                                           //PWM0使能
+  60                          
+  61                  }
+  62                  else if(mode == 1)
+  63                  {
+  64                          CKCON |= IHCKE;                                 //打开IRCH时钟
+  65                  //      CKCON |= ILCKE;                         //打开IRCL时钟
+  66                          INDEX = PWM_CH0;                                                                                                      //设置INDEX值对应PWM0
+  67                          PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | CKS_SYS ;            //设置PWM时钟源为IRCH  
+  68                  //      PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | CKS_IL ;             //设置PWM时钟源为IRCL
+  69                  //      PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | CKS_XH ;             //设置PWM时钟源为XOSCH
+  70          
+  71                          PWMCFG = TOG(0) | 0;                            
+  72                          PWMPS = PWM_P01_INDEX;                          //设置P01为PWM0输出引脚
+  73                          P01F  = PWM_SETTING;    
+  74                          
+  75                          //设置PWMDIV、PWMDUT
+  76                          PWMDIVH = (unsigned char)(PWMDIV_V>>8);                 
+  77                          PWMDIVL = (unsigned char)(PWMDIV_V);                    
+  78                          PWMDUTH = (unsigned char)(PWMDUT_V>>8);         
+  79                          PWMDUTL = (unsigned char)(PWMDUT_V);    
+  80          
+  81                          PWMUPD = (1<<PWM_CH0);                                                                  //PWMDIV、PWMDUT更新使能
+  82                          while(PWMUPD);                                                                                                  //等待更新完成
+  83                          PWMEN = (0<<PWM_CH0);                                                                           //PWM0使能
+  84                          
+  85                          
+  86                  }
+  87                  
+  88          }
+  89          */
+  90          
+  91          
+  92          
+  93          
+  94          
+  95          
+  96          
+  97          
+  98          
+  99          
+ 100          #endif 
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     51    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+C51 COMPILER V9.57.0.0   PWM                                                               03/10/2021 11:41:48 PAGE 3   
+
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

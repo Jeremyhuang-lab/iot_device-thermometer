@@ -1,0 +1,296 @@
+C51 COMPILER V9.57.0.0   UART                                                              03/10/2021 11:41:47 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE UART
+OBJECT MODULE PLACED IN .\output\uart.obj
+COMPILER INVOKED BY: E:\Keil5 MDK1\C51\BIN\C51.EXE source\uart.c LARGE OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\mcu_sdk) D
+                    -EBUG PRINT(.\lst\uart.lst) OBJECT(.\output\uart.obj)
+
+line level    source
+
+   1          #ifndef _UART_C_
+   2          #define _UART_C_
+   3          #include "include/ca51f003_config.h"            
+   4          #include "include/ca51f003sfr.h"
+   5          #include "include/ca51f003xsfr.h"
+   6          #include "include/gpiodef_f003.h"
+   7          
+   8          #include "include/uart.h"
+   9          #include <intrins.h>
+  10          #include <string.h>
+  11          #include <stdarg.h>
+  12          #include <stdlib.h>
+  13          #include <stdio.h>
+  14          #include <absacc.h>
+  15          /*********************************************************************************************************
+             -************/
+  16          #include "wifi.h"
+  17          /*********************************************************************************************************
+             -************/
+  18          //注意： 以下波特率参数对应主时钟为16M，如选择另外的主时钟频率，参数须重新计算。
+  19          code unsigned long int BR_TAB[]=
+  20          {
+  21                  1200,
+  22                  2400,
+  23                  4800,
+  24                  9600,
+  25                  19200,
+  26                  38400,
+  27                  57600,
+  28                  115200,
+  29          };
+  30          code unsigned int BR_SET_TAB[][2]=
+  31          {
+  32                  {416,31},
+  33                  {208,31},
+  34                  {104,31},
+  35                  {52,31},
+  36                  {26,31},
+  37                  {13,31},
+  38                  {10,27},
+  39                  {5,27},
+  40          };
+  41          #ifdef UART1_EN
+  42          void Uart1_Initial(unsigned long int baudrate)
+  43          {
+  44   1      
+  45   1              unsigned int value_temp;
+  46   1              unsigned char i;
+  47   1      
+  48   1              uart1_send.head=0;
+  49   1              uart1_send.tail=0;
+  50   1              uart1_rev.head=0;
+  51   1              uart1_rev.tail=0;
+  52   1              uart1_tx_flag=0;
+C51 COMPILER V9.57.0.0   UART                                                              03/10/2021 11:41:47 PAGE 2   
+
+  53   1      
+  54   1              for(i=0;i<sizeof(BR_TAB)/4;i++)
+  55   1              {
+  56   2                      if(baudrate == BR_TAB[i])
+  57   2                      {
+  58   3                              value_temp = 0x400 - BR_SET_TAB[i][0];
+  59   3                              UDCKS1 = 0x80 | BR_SET_TAB[i][1]; 
+  60   3                              break;
+  61   3                      }
+  62   2              }
+  63   1              if(i == sizeof(BR_TAB)/4) return;       //如果所设置的波特率不在表格中，可自行添加。
+  64   1      
+  65   1              GPIO_Init(P07F,P07_UART1_RX_SETTING);
+  66   1              GPIO_Init(P06F,P06_UART1_TX_SETTING);
+  67   1      
+  68   1              S1RELH = (unsigned char)(value_temp>>8);
+  69   1              S1RELL = (unsigned char)(value_temp);
+  70   1              
+  71   1              S1CON = 0xD0;
+  72   1              ES1 =   1;      
+  73   1      }
+  74          void Uart1_PutChar(unsigned char bdat)
+  75          {
+  76   1              unsigned char free_space;
+  77   1              unsigned char tail_tmp;
+  78   1              while(1)
+  79   1              {               
+  80   2                      tail_tmp = uart1_send.tail;
+  81   2                      if(uart1_send.head < tail_tmp)
+  82   2                      {
+  83   3                              free_space = tail_tmp - uart1_send.head;
+  84   3                      }
+  85   2                      else
+  86   2                      {
+  87   3                              free_space = UART1_TX_BUF_SIZE + tail_tmp - uart1_send.head;
+  88   3                      }               
+  89   2                      if(free_space > 1)
+  90   2                      {
+  91   3                              ES1 = 0; 
+  92   3                              uart1_send.head++;
+  93   3                              uart1_send.head %= UART1_TX_BUF_SIZE;
+  94   3                              uart1_tx_buf[uart1_send.head] = bdat;
+  95   3                              if(!uart1_tx_flag)
+  96   3                              {
+  97   4                                      ES1 = 1;
+  98   4                                      uart1_send.tail++;
+  99   4                                      uart1_send.tail %= UART1_TX_BUF_SIZE;           
+ 100   4                                      S1BUF = uart1_tx_buf[uart1_send.tail];                          
+ 101   4                                      uart1_tx_flag = 1;              
+ 102   4                              }
+ 103   3                              else
+ 104   3                              {
+ 105   4                                      ES1 = 1;        
+ 106   4                              }                       
+ 107   3                              break;
+ 108   3                      }
+ 109   2              }
+ 110   1      }
+ 111          void UART1_ISR (void) interrupt 6       
+ 112          {
+ 113   1              unsigned char res;
+ 114   1              if(S1CON & 0x01)
+C51 COMPILER V9.57.0.0   UART                                                              03/10/2021 11:41:47 PAGE 3   
+
+ 115   1              {
+ 116   2                      S1CON = (S1CON&~(0x03))|0x01;                    
+ 117   2                      uart1_rev.head++;
+ 118   2                  uart1_rev.head %= UART1_RX_BUF_SIZE;
+ 119   2                      uart1_rx_buf[uart1_rev.head]=S1BUF;
+ 120   2                      res = uart1_rx_buf[uart1_rev.head];
+ 121   2                      uart_receive_input(res);
+ 122   2              }
+ 123   1              if(S1CON & 0x02)
+ 124   1              {
+ 125   2                      S1CON = (S1CON&~(0x03))|0x02;   
+ 126   2                      if(uart1_send.head!=uart1_send.tail)
+ 127   2                      {
+ 128   3                              uart1_send.tail++;
+ 129   3                              uart1_send.tail %= UART1_TX_BUF_SIZE;
+ 130   3                              S1BUF=uart1_tx_buf[uart1_send.tail];                            
+ 131   3                      }
+ 132   2                      else
+ 133   2                      {
+ 134   3                              uart1_tx_flag=0;
+ 135   3                      }               
+ 136   2              }
+ 137   1      }
+ 138          #endif
+ 139          #ifdef UART2_EN
+              void Uart2_Initial(unsigned long int baudrate)
+              {
+                      unsigned int value_temp,i;
+              
+                      uart2_send.head=0;
+                      uart2_send.tail=0;
+                      uart2_rev.head=0;
+                      uart2_rev.tail=0;
+                      uart2_tx_flag=0;
+              
+                      GPIO_Init(P16F,P16_UART2_TX_SETTING);
+                      GPIO_Init(P02F,P02_UART2_RX_SETTING);
+              
+                      for(i=0;i<sizeof(BR_TAB)/4;i++)
+                      {
+                              if(baudrate == BR_TAB[i])
+                              {
+                                      value_temp = 0x400 - BR_SET_TAB[i][0];
+                                      UDCKS2 = 0x80 | BR_SET_TAB[i][1]; 
+                                      break;
+                              }
+                      }
+                      if(i == sizeof(BR_TAB)/4) return;       //如果所设置的波特率不在表格中，可自行添加。
+              
+                      S2RELH = (unsigned char)(value_temp>>8);
+                      S2RELL = (unsigned char)(value_temp);
+                      
+                      S2CON = 0xD0;
+                      INT3EN =        1;      
+              }
+              void Uart2_PutChar(unsigned char bdat)
+              {
+                      unsigned char free_space;
+                      unsigned char tail_tmp;
+                      while(1)
+                      {               
+                              tail_tmp = uart2_send.tail;
+C51 COMPILER V9.57.0.0   UART                                                              03/10/2021 11:41:47 PAGE 4   
+
+                              if(uart2_send.head < tail_tmp)
+                              {
+                                      free_space = tail_tmp - uart2_send.head;
+                              }
+                              else
+                              {
+                                      free_space = UART2_TX_BUF_SIZE + tail_tmp - uart2_send.head;
+                              }               
+                              if(free_space > 1)
+                              {
+                                      INT3EN = 0; 
+                                      uart2_send.head++;
+                                      uart2_send.head %= UART2_TX_BUF_SIZE;
+                                      uart2_tx_buf[uart2_send.head] = bdat;                   
+                                      if(!uart2_tx_flag)
+                                      {
+                                              INT3EN = 1;
+                                              uart2_send.tail++;
+                                              uart2_send.tail %= UART2_TX_BUF_SIZE;                   
+                                              S2BUF = uart2_tx_buf[uart2_send.tail];                          
+                                              uart2_tx_flag = 1;              
+                                      }
+                                      else
+                                      {
+                                              INT3EN = 1;     
+                                      }                       
+                                      break;
+                              }
+                      }
+              }
+              void UART2_ISR (void) interrupt 8       
+              {
+                      if(S2CON & 0x01)
+                      {
+                              S2CON = (S2CON&~(0x03))|0x01;                    
+                              uart2_rev.head++;
+                              uart2_rev.head %= UART2_RX_BUF_SIZE;
+                              uart2_rx_buf[uart2_rev.head]=S2BUF;
+                      }
+                      if(S2CON & 0x02)
+                      {
+                              S2CON = (S2CON&~(0x03))|0x02;   
+                              if(uart2_send.head!=uart2_send.tail)
+                              {
+                                      uart2_send.tail++;
+                                      uart2_send.tail %= UART2_TX_BUF_SIZE;
+                                      S2BUF=uart2_tx_buf[uart2_send.tail];                            
+                              }
+                              else
+                              {
+                                      uart2_tx_flag=0;
+                              }               
+                      }
+              }
+              #endif
+ 232          
+ 233          #ifdef PRINT_EN
+ 234                  #ifdef UART1_PRINT
+ 235                          #define Uart_PutChar    Uart1_PutChar
+ 236                  #elif defined  UART2_PRINT
+                              #define Uart_PutChar    Uart2_PutChar
+                      #endif
+C51 COMPILER V9.57.0.0   UART                                                              03/10/2021 11:41:47 PAGE 5   
+
+ 239          void UartPutStr(char *str)
+ 240          {
+ 241   1              while(*str)
+ 242   1              {       
+ 243   2                      Uart_PutChar(*str++);
+ 244   2              }
+ 245   1      }
+ 246          void uart_printf(char *fmt,...) 
+ 247          {
+ 248   1          va_list ap;
+ 249   1          char xdata string[256];
+ 250   1          va_start(ap,fmt);
+ 251   1          vsprintf(string,fmt,ap);
+ 252   1          UartPutStr(string);
+ 253   1          va_end(ap);
+ 254   1      }
+ 255          #endif
+ 256          /*********************************************************************************************************
+             -************/
+ 257          #endif
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    601    ----
+   CONSTANT SIZE    =     64    ----
+   XDATA SIZE       =    124     312
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

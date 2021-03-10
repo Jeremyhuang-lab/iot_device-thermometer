@@ -1,0 +1,512 @@
+C51 COMPILER V9.57.0.0   RGB                                                               03/10/2021 11:41:47 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE RGB
+OBJECT MODULE PLACED IN .\output\rgb.obj
+COMPILER INVOKED BY: E:\Keil5 MDK1\C51\BIN\C51.EXE source\rgb.c LARGE OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\mcu_sdk) DE
+                    -BUG PRINT(.\lst\rgb.lst) OBJECT(.\output\rgb.obj)
+
+line level    source
+
+   1          #ifndef _RGB_C_
+   2          #define _RGB_C_
+   3          /*********************************************************************************************************
+             -************/
+   4          #include "include/Public.h"
+   5          /*********************************************************************************************************
+             -************/
+   6          
+   7          unsigned char xdata led_color_index;  //RGB配色
+   8          unsigned char xdata led_breathing_index;  //RGB呼吸
+   9          unsigned int xdata breathing_timer;       //RGB呼吸灯时间
+  10          unsigned char xdata gp_2_5ms_timer;       //2.5ms定时器
+  11          unsigned int xdata flash_timer;           //闪烁时间
+  12          unsigned char xdata f_flash;              
+  13          
+  14          unsigned int u16_gp_4ms_timer;
+  15          //unsigned int  working_timer;
+  16          //unsigned char working_flag;   
+  17                  
+  18          unsigned char xdata blue_duty=0,red_duty=0,green_duty=0;
+  19          
+  20          unsigned char xdata rgb_pwm_div;  //RGB分频
+  21          
+  22          void set_lamp_duty(unsigned char index);
+  23          void set_lamp_color(unsigned char index);
+  24          void RGB_Led_MainLoop(void);
+  25          void RGB_Led_Breathing(void);
+  26          /*********************************************************************************************************
+             -************/
+  27          //if 需要跳变效果 则打开
+  28          /*
+  29          bit RGB_Flag = 0;
+  30          extern unsigned char RGB_Index;
+  31          extern unsigned int RGB_Count;
+  32          */
+  33          /*********************************************************************************************************
+             -************/
+  34          
+  35          /***********************************************************************************
+  36          函数名：lamp_init
+  37          功能说明：RGB初始化
+  38          输入参数：None 
+  39          返回值：  None                                                  
+  40          ***********************************************************************************/
+  41          void lamp_init(void)
+  42          {   
+  43   1      
+  44   1              P10F  = PWM_SETTING;
+  45   1              
+  46   1      
+  47   1              P11F  = PWM_SETTING;
+  48   1              
+  49   1      
+  50   1              P12F  = PWM_SETTING;
+C51 COMPILER V9.57.0.0   RGB                                                               03/10/2021 11:41:47 PAGE 2   
+
+  51   1              
+  52   1              rgb_pwm_div = 255;                //PWM 周期
+  53   1          
+  54   1              led_color_index = LED_COLOR_OFF;
+  55   1              set_lamp_duty(led_color_index);
+  56   1              set_lamp_color(led_color_index);        
+  57   1      }
+  58          /***********************************************************************************
+  59          函数名： set_lamp_duty
+  60          功能说明：RGB占空比配置
+  61          输入参数： indedx
+  62          返回值：  None                                                  
+  63          ***********************************************************************************/
+  64          void set_lamp_duty(unsigned char index)
+  65          {
+  66   1              switch(index)
+  67   1              {
+  68   2                      case LED_COLOR_OFF:     
+  69   2                              red_duty  = 0;
+  70   2                              green_duty= 0;
+  71   2                              blue_duty = 0;
+  72   2                          
+  73   2                              break;
+  74   2                      case LED_COLOR_RED:
+  75   2                              red_duty  = 255;
+  76   2                              green_duty= 0;
+  77   2                              blue_duty = 0;
+  78   2                      
+  79   2                              break;
+  80   2                      case LED_COLOR_GREEN:
+  81   2                              red_duty  = 0;
+  82   2                              green_duty= 255;
+  83   2                              blue_duty = 0;
+  84   2                      
+  85   2                              break;
+  86   2                      case LED_COLOR_BLUE:
+  87   2                              red_duty  = 0;
+  88   2                              green_duty= 0;
+  89   2                              blue_duty = 255;
+  90   2                      
+  91   2                              break;
+  92   2                      case LED_COLOR_YELLOW:
+  93   2                              red_duty  = 255;
+  94   2                              green_duty= 255;
+  95   2                              blue_duty = 0;
+  96   2                      
+  97   2                              break;
+  98   2                      case LED_COLOR_PURPLE:
+  99   2                              red_duty  = 255;
+ 100   2                              green_duty= 0;
+ 101   2                              blue_duty = 255;
+ 102   2                          
+ 103   2                              break;
+ 104   2                      case LED_COLOR_CYAN:
+ 105   2                              red_duty  = 0;
+ 106   2                              green_duty= 255;
+ 107   2                              blue_duty = 255;
+ 108   2                          
+ 109   2                              break;
+ 110   2                      case LED_COLOR_WHITE:
+ 111   2                              red_duty  = 255;
+ 112   2                              green_duty= 255;
+C51 COMPILER V9.57.0.0   RGB                                                               03/10/2021 11:41:47 PAGE 3   
+
+ 113   2                              blue_duty = 255;
+ 114   2                      
+ 115   2                          break;
+ 116   2      //              case LED_COLOR_NONE:
+ 117   2      //                      red_duty  = 0;
+ 118   2      //                      green_duty= 0;
+ 119   2      //                      blue_duty = 0;
+ 120   2      //                  RGB_Flag = 0;
+ 121   2      //                  RGB_Count = 0;
+ 122   2      //                  RGB_Index = 0;
+ 123   2                              break;
+ 124   2                      case LED_COLOR_BREATHING:
+ 125   2                              break;
+ 126   2                      default:
+ 127   2                              break;
+ 128   2                      
+ 129   2              }
+ 130   1      }
+ 131          /***********************************************************************************
+ 132          函数名：  set_lamp_color
+ 133          功能说明：RGB配置颜色
+ 134          输入参数：index 
+ 135          返回值：  None                                                  
+ 136          ***********************************************************************************/
+ 137          void set_lamp_color(unsigned char index)
+ 138          {
+ 139   1              switch(index)
+ 140   1              {
+ 141   2                      case LED_COLOR_OFF:
+ 142   2      //                      PWM_EnContrl(PWMEN & (~RGB_PWM_EN));            
+ 143   2      //                      break; 
+ 144   2                      case LED_COLOR_RED:
+ 145   2                      case LED_COLOR_GREEN:
+ 146   2                      case LED_COLOR_BLUE:
+ 147   2                      case LED_COLOR_YELLOW:
+ 148   2                      case LED_COLOR_PURPLE:
+ 149   2                      case LED_COLOR_CYAN:
+ 150   2                      case LED_COLOR_WHITE:
+ 151   2      //              case LED_COLOR_NONE:            
+ 152   2      
+ 153   2                              INDEX = PWM_CH3;
+ 154   2                              PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | MOD(0) ;
+ 155   2                              PWMCFG = TOG(0) | 0;
+ 156   2                              PWMDIVH = 0;
+ 157   2                              PWMDIVL = rgb_pwm_div;
+ 158   2                              PWMDUTH = 0;
+ 159   2                              PWMDUTL = red_duty;
+ 160   2                              PWMPS = PWM_P10_INDEX;
+ 161   2                              P10F  = PWM_SETTING;
+ 162   2                              
+ 163   2                              INDEX = PWM_CH4;
+ 164   2                              PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | CKS_IH ;              
+ 165   2                              PWMCFG = TOG(0) | 0;
+ 166   2                              PWMDIVH = 0;
+ 167   2                              PWMDIVL = rgb_pwm_div;
+ 168   2                              PWMDUTH = 0;
+ 169   2                              PWMDUTL = green_duty;
+ 170   2                              PWMPS = PWM_P11_INDEX;
+ 171   2                              P11F  = PWM_SETTING;
+ 172   2                              
+ 173   2                              INDEX = PWM_CH5;
+ 174   2                              PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | MOD(0) ;
+C51 COMPILER V9.57.0.0   RGB                                                               03/10/2021 11:41:47 PAGE 4   
+
+ 175   2                              PWMCFG = TOG(0) | 0;
+ 176   2                              PWMDIVH = 0;
+ 177   2                              PWMDIVL = rgb_pwm_div;
+ 178   2                              PWMDUTH = 0;
+ 179   2                              PWMDUTL = blue_duty;
+ 180   2                              PWMPS = PWM_P12_INDEX;
+ 181   2                              P12F  = PWM_SETTING;
+ 182   2                
+ 183   2                              
+ 184   2      
+ 185   2                              PWMUPD |= (1<<PWM_CH3)|(1<<PWM_CH4)|(1<<PWM_CH5);
+ 186   2                              while(PWMUPD);
+ 187   2                              PWMEN |= (1<<PWM_CH3)|(1<<PWM_CH4)|(1<<PWM_CH5);
+ 188   2      
+ 189   2                              break;
+ 190   2                      case LED_COLOR_BREATHING:
+ 191   2                              led_breathing_index = 0;
+ 192   2                              red_duty  = 0;
+ 193   2                              green_duty= 0;
+ 194   2                              blue_duty = 0;
+ 195   2                              breathing_timer = u16_gp_4ms_timer;
+ 196   2                              break;
+ 197   2                      default:
+ 198   2                              break;
+ 199   2              }
+ 200   1      }
+ 201          /***********************************************************************************
+ 202          函数名：  RGB_Led_Breathing
+ 203          功能说明：RGB呼吸灯 
+ 204          输入参数： None B-G-R
+ 205          返回值：   None                                                 
+ 206          ***********************************************************************************/
+ 207          //void RGB_Led_Breathing(void)
+ 208          //{
+ 209          //      if(led_color_index != LED_COLOR_BREATHING) return;
+ 210          //    
+ 211          //      if(breathing_timer-u16_gp_4ms_timer>6)
+ 212          //      {
+ 213          //              breathing_timer=u16_gp_4ms_timer;       
+ 214          //              if(led_breathing_index==0)                      //r b
+ 215          //              {
+ 216          //                      if(blue_duty<255)blue_duty++;
+ 217          //                      else led_breathing_index++;
+ 218          //              }               
+ 219          //              else if(led_breathing_index==1)         //b
+ 220          //              {
+ 221          //                      if(red_duty>0)red_duty--;
+ 222          //                      else led_breathing_index++;
+ 223          //              }                
+ 224          //              else if(led_breathing_index==2)         //b g 
+ 225          //              {
+ 226          //                      if(green_duty<255)green_duty++;
+ 227          //                      else led_breathing_index++;
+ 228          //              }
+ 229          //              else if(led_breathing_index==3)         //g
+ 230          //              {
+ 231          //                      if(blue_duty>0)blue_duty--;
+ 232          //                      else led_breathing_index++;
+ 233          //              }
+ 234          //              else if(led_breathing_index==4)         //g r
+ 235          //              {
+ 236          //                      if(red_duty<255)red_duty++;
+C51 COMPILER V9.57.0.0   RGB                                                               03/10/2021 11:41:47 PAGE 5   
+
+ 237          //                      else led_breathing_index++;
+ 238          //              }
+ 239          //                      else if(led_breathing_index==5)  //r
+ 240          //              {
+ 241          //                      if(green_duty>0)green_duty--;
+ 242          //                      else led_breathing_index=0;
+ 243          //              }       
+ 244          //              PWM_CfgDivDuty(PWM_CH5, rgb_pwm_div, red_duty);
+ 245          //              PWM_CfgDivDuty(PWM_CH4, rgb_pwm_div, green_duty);
+ 246          //              PWM_CfgDivDuty(PWM_CH3, rgb_pwm_div, blue_duty);
+ 247          //              
+ 248          //              PWM_Update(PWMEN | RGB_PWM_EN);
+ 249          //              WaitPWMUpdateComplete();
+ 250          //              PWM_EnContrl(PWMEN | RGB_PWM_EN);
+ 251          //      }                 
+ 252          //}
+ 253          /***********************************************************************************
+ 254          函数名：  RGB_Led_Breathing
+ 255          功能说明：RGB渐变呼吸灯 R-G-B 
+ 256          输入参数： None
+ 257          返回值：   None                                                 
+ 258          ***********************************************************************************/
+ 259          //void RGB_Led_Breathing(void)
+ 260          //{
+ 261          //      if(led_color_index != LED_COLOR_BREATHING) return;
+ 262          //    
+ 263          //      if(breathing_timer-u16_gp_4ms_timer>6)
+ 264          //      {
+ 265          //              breathing_timer=u16_gp_4ms_timer;       
+ 266          //              if(led_breathing_index==0)                      //b r
+ 267          //              {
+ 268          //                      if(red_duty<255)red_duty++;
+ 269          //                      else led_breathing_index++;
+ 270          //              }               
+ 271          //              else if(led_breathing_index==1)         //r
+ 272          //              {
+ 273          //                      if(blue_duty>0)blue_duty--;
+ 274          //                      else led_breathing_index++;
+ 275          //              }                
+ 276          //              else if(led_breathing_index==2)         //r g 
+ 277          //              {
+ 278          //                      if(green_duty<255)green_duty++;
+ 279          //                      else led_breathing_index++;
+ 280          //              }
+ 281          //              else if(led_breathing_index==3)         //g
+ 282          //              {
+ 283          //                      if(red_duty>0)red_duty--;
+ 284          //                      else led_breathing_index++;
+ 285          //              }
+ 286          //              else if(led_breathing_index==4)         //g b
+ 287          //              {
+ 288          //                      if(blue_duty<255)blue_duty++;
+ 289          //                      else led_breathing_index++;
+ 290          //              }
+ 291          //                      else if(led_breathing_index==5)  //b
+ 292          //              {
+ 293          //                      if(green_duty>0)green_duty--;
+ 294          //                      else led_breathing_index=0;
+ 295          //              }       
+ 296          //              PWM_CfgDivDuty(PWM_CH5, rgb_pwm_div, red_duty);
+ 297          //              PWM_CfgDivDuty(PWM_CH4, rgb_pwm_div, green_duty);
+ 298          //              PWM_CfgDivDuty(PWM_CH3, rgb_pwm_div, blue_duty);
+C51 COMPILER V9.57.0.0   RGB                                                               03/10/2021 11:41:47 PAGE 6   
+
+ 299          //              
+ 300          //              PWM_Update(PWMEN | RGB_PWM_EN);
+ 301          //              WaitPWMUpdateComplete();
+ 302          //              PWM_EnContrl(PWMEN | RGB_PWM_EN);
+ 303          //      }                 
+ 304          //}
+ 305          /***********************************************************************************
+ 306          函数名：  RGB_Led_Breathing
+ 307          功能说明：RGB渐变呼吸灯 R-G-B 
+ 308          输入参数： None
+ 309          返回值：   None                                                 
+ 310          ***********************************************************************************/
+ 311          void RGB_Led_Breathing(void)
+ 312          {
+ 313   1              if(led_color_index != LED_COLOR_BREATHING) return;
+ 314   1          
+ 315   1              if(breathing_timer-u16_gp_4ms_timer>16)
+ 316   1              {
+ 317   2                      breathing_timer=u16_gp_4ms_timer;       
+ 318   2                      if(led_breathing_index==0)                      //r
+ 319   2                      {
+ 320   3                              if(red_duty<255)red_duty++;     //0~r
+ 321   3                              else led_breathing_index++;                             
+ 322   3                      }               
+ 323   2                      else if(led_breathing_index==1)         //r-0 
+ 324   2                      {
+ 325   3                              if(red_duty>1)red_duty--;
+ 326   3                              else
+ 327   3                              {
+ 328   4                                      green_duty = 1;
+ 329   4                                      led_breathing_index++;
+ 330   4                              }
+ 331   3                      }                
+ 332   2                      else if(led_breathing_index==2)         //0-g
+ 333   2                      {
+ 334   3                              if(green_duty<255)green_duty++;
+ 335   3                              else 
+ 336   3                              {
+ 337   4                                      led_breathing_index++;
+ 338   4                              }
+ 339   3                      }
+ 340   2                      else if(led_breathing_index==3)         //g-0
+ 341   2                      {
+ 342   3                              if(green_duty>1)green_duty--;
+ 343   3                              else
+ 344   3                              {       
+ 345   4      //                              red_duty=255; 
+ 346   4                                      blue_duty=1;
+ 347   4                                      led_breathing_index++;          
+ 348   4                              }
+ 349   3                      }
+ 350   2                      else if(led_breathing_index==4)         //0-b
+ 351   2                      {
+ 352   3                              if(blue_duty<255)blue_duty++;
+ 353   3                              else led_breathing_index++;
+ 354   3                      }
+ 355   2                      else if(led_breathing_index==5)  //b-0
+ 356   2                      {
+ 357   3                              if(blue_duty>1)blue_duty--;
+ 358   3                              else
+ 359   3                              {
+ 360   4                                      red_duty = 1;
+C51 COMPILER V9.57.0.0   RGB                                                               03/10/2021 11:41:47 PAGE 7   
+
+ 361   4                                      green_duty = 1;
+ 362   4                                      led_breathing_index++;
+ 363   4                              }
+ 364   3                      }       
+ 365   2                      else if(led_breathing_index==6)  //0-y
+ 366   2                      {
+ 367   3                              if((red_duty<255)&&(green_duty<255)){red_duty++;green_duty++;}
+ 368   3                              else
+ 369   3                              {
+ 370   4      //                              red_duty = 0;
+ 371   4      //                              green_duty = 0;
+ 372   4                                      led_breathing_index++;
+ 373   4                              }
+ 374   3                      }       
+ 375   2                      else if(led_breathing_index==7)  //y-0
+ 376   2                      {
+ 377   3                              if((red_duty>1)&&(green_duty>1)){red_duty--;green_duty--;}
+ 378   3                              else
+ 379   3                              {
+ 380   4                                      red_duty = 1;
+ 381   4                                      blue_duty = 1;
+ 382   4                                      led_breathing_index++;
+ 383   4                              }
+ 384   3                      }       
+ 385   2                      else if(led_breathing_index==8)  //0-p
+ 386   2                      {
+ 387   3                              if((red_duty<255)&&(blue_duty<255)){red_duty++;blue_duty++;}
+ 388   3                              else
+ 389   3                              {
+ 390   4      //                              red_duty = 0;
+ 391   4      //                              blue_duty = 0;
+ 392   4                                      led_breathing_index++;
+ 393   4                              }
+ 394   3                      }               
+ 395   2                      else if(led_breathing_index==9)  //p-0
+ 396   2                      {
+ 397   3                              if((red_duty>1)&&(blue_duty>1)){red_duty--;blue_duty--;}
+ 398   3                              else
+ 399   3                              {
+ 400   4                                      green_duty = 1;
+ 401   4                                      blue_duty = 1;
+ 402   4                                      led_breathing_index++;
+ 403   4                              }
+ 404   3                      }               
+ 405   2                      else if(led_breathing_index==10)  //0-c
+ 406   2                      {
+ 407   3                              if((green_duty<255)&&(blue_duty<255)){green_duty++;blue_duty++;}
+ 408   3                              else
+ 409   3                              {
+ 410   4      //                              green_duty = 0;
+ 411   4      //                              blue_duty = 0;
+ 412   4                                      led_breathing_index++;
+ 413   4                              }
+ 414   3                      }       
+ 415   2                      else if(led_breathing_index==11)  //y-0
+ 416   2                      {
+ 417   3                              if((green_duty>1)&&(blue_duty>1)){green_duty--;blue_duty--;}
+ 418   3                              else
+ 419   3                              {
+ 420   4                      red_duty = 1;
+ 421   4                                      led_breathing_index=0;
+ 422   4                              }
+C51 COMPILER V9.57.0.0   RGB                                                               03/10/2021 11:41:47 PAGE 8   
+
+ 423   3                      }                       
+ 424   2                      
+ 425   2                      INDEX = PWM_CH3;
+ 426   2                              PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | MOD(0) ;
+ 427   2                              PWMCFG = TOG(0) | 0;
+ 428   2                              PWMDIVH = 0;
+ 429   2                              PWMDIVL = rgb_pwm_div;
+ 430   2                              PWMDUTH = 0;
+ 431   2                              PWMDUTL = red_duty;
+ 432   2                              PWMPS = PWM_P10_INDEX;
+ 433   2                              P10F  = PWM_SETTING;
+ 434   2                              
+ 435   2                              INDEX = PWM_CH4;
+ 436   2                              PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | CKS_IH ;              
+ 437   2                              PWMCFG = TOG(0) | 0;
+ 438   2                              PWMDIVH = 0;
+ 439   2                              PWMDIVL = rgb_pwm_div;
+ 440   2                              PWMDUTH = 0;
+ 441   2                              PWMDUTL = green_duty;
+ 442   2                              PWMPS = PWM_P11_INDEX;
+ 443   2                              P11F  = PWM_SETTING;
+ 444   2                              
+ 445   2                              INDEX = PWM_CH5;
+ 446   2                              PWMCON = TIE(0) | ZIE(0) | PIE(0) | NIE(0) | MS(0) | MOD(0) ;
+ 447   2                              PWMCFG = TOG(0) | 0;
+ 448   2                              PWMDIVH = 0;
+ 449   2                              PWMDIVL = rgb_pwm_div;
+ 450   2                              PWMDUTH = 0;
+ 451   2                              PWMDUTL = blue_duty;
+ 452   2                              PWMPS = PWM_P12_INDEX;
+ 453   2                              P12F  = PWM_SETTING;    
+ 454   2                              
+ 455   2      
+ 456   2                              PWMUPD |= (1<<PWM_CH3)|(1<<PWM_CH4)|(1<<PWM_CH5);
+ 457   2                              while(PWMUPD);
+ 458   2                              PWMEN |= (1<<PWM_CH3)|(1<<PWM_CH4)|(1<<PWM_CH5);
+ 459   2              }                 
+ 460   1      }
+ 461          
+ 462          
+ 463          /*********************************************************************************************************
+             -************/
+ 464           
+ 465          #endif
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    907    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     14    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

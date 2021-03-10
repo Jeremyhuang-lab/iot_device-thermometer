@@ -1,0 +1,51 @@
+C51 COMPILER V9.57.0.0   BEEP                                                              03/10/2021 11:41:49 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE BEEP
+OBJECT MODULE PLACED IN .\output\beep.obj
+COMPILER INVOKED BY: E:\Keil5 MDK1\C51\BIN\C51.EXE source\beep.c LARGE OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(.\mcu_sdk) D
+                    -EBUG PRINT(.\lst\beep.lst) OBJECT(.\output\beep.obj)
+
+line level    source
+
+   1          #ifndef _BEEP_C_
+   2          #define _BEEP_C_
+   3          /*********************************************************************************************************
+             -************/
+   4          #include "include/Public.h"
+   5          /*********************************************************************************************************
+             -************/
+   6          void Beep_Init(void)
+   7          {
+   8   1              P05F = P05_BEEP_SETTING;
+   9   1      
+  10   1              BZDIVH  = BZDIV_V>>8;
+  11   1              BZDIVL  = BZDIV_V;
+  12   1              BZDUTH  = BZDUT_V>>8;
+  13   1              BZDUTL  = BZDUT_V;
+  14   1      
+  15   1      
+  16   1              BZCON = BZD(0)|BZH(0)|BZE(0);   
+  17   1      }
+  18          
+  19          
+  20          
+  21          #endif 
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     36    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
